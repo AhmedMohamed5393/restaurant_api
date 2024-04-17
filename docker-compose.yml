@@ -1,0 +1,54 @@
+version: '3'
+
+services:
+  api:
+    container_name: "${APP_NAME:-restaurant}"
+    restart: always
+    env_file: 
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${DOCKER_COMPOSE_PORT:-8000}:80'
+    volumes:
+      - .:/home/node/app
+      - /home/node/app/node_modules
+    links:
+      - mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - restaurant
+  redis:
+    image: 'redis:alpine'
+    ports:
+      - '${REDIS_PORT_NUMBER:-6378}:6379'
+    volumes:
+      - 'redis:/data'
+    networks:
+      - restaurant
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      retries: 3
+      timeout: 5s
+  mongodb:
+    image: mongo:6-jammy
+    ports:
+      - '${MONGO_PORT_NUMBER:-27017}:27017'
+    volumes:
+      - mongo:/data/db
+    networks:
+      - restaurant
+
+networks:
+  restaurant:
+    driver: bridge
+
+volumes:
+  api:
+    driver: local
+  redis:
+    driver: local
+  mongo:
+    driver: local
