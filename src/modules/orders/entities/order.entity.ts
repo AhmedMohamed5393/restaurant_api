@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument, now } from 'mongoose';
+import mongoose, { HydratedDocument } from 'mongoose';
 import { OrderStatus } from '../enum/order-status.enum';
 import { Product } from 'src/modules/products/entities/product.entity';
 
@@ -9,6 +9,11 @@ interface ICustomerDetails {
   name: string;
   address: string;
   email: string;
+}
+
+interface IPurchasedItem {
+  _id: string;
+  quantity: number;
 }
 
 @Schema({ timestamps: true, collection: 'orders' })
@@ -24,7 +29,7 @@ export class Order {
     type: String,
     enum: [
       OrderStatus.pending,
-      OrderStatus.completed,
+      OrderStatus.confirmed,
       OrderStatus.cancelled,
     ],
   })
@@ -33,14 +38,11 @@ export class Order {
   @Prop({ type: Object, required: true })
   public customer: ICustomerDetails;
 
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'products' }] })
+  @Prop({ type: Array<Object>, required: true })
+  public purchased_items: IPurchasedItem[];
+
+  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: Product.name }] })
   public products: Product[];
-
-  @Prop({ default: now() })
-  public created_at: Date;
-
-  @Prop({ default: now() })
-  public updated_at: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

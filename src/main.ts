@@ -22,16 +22,6 @@ async function bootstrap() {
     .setTitle('Restaurant')
     .setVersion('1.0')
     .setDescription('Swagger API documentation for Restaurant project endpoints.')
-    .addBearerAuth(
-      {
-        description: `Please enter token in following format: JWT`,
-        name: 'Authorization',
-        bearerFormat: 'Bearer',
-        type: 'http',
-        in: 'Header',
-      },
-      'access-token',
-    )
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

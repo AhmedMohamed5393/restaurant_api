@@ -1,11 +1,6 @@
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
@@ -20,107 +15,105 @@ export class OrdersService {
   ) {}
 
   public async create(createOrderDto: CreateOrderDto) {
-    try {
-      // map selected products ids with check
-      const products_ids = createOrderDto.products.map((product) => product._id);
-      const products = await this.productService.checkExistenceOfProductsByIds(products_ids);
-      if (!products.length) {
-        throw new UnprocessableEntityException('No products found');
-      }
-
-      let total = 0;
-      for (const product of products) {
-        const foundProduct = createOrderDto.products.find(
-          (item) => {
-            return item._id === product._id.toString() && item.quantity > product.quantity;
-          },
-        );
-        if (!foundProduct) continue;
-
-        total += product.price;
-      }
-
-      // count all orders to generate order number
-      const count = await this.orderModel.countDocuments();
-
-      // prepare order payload for insertion
-      const newOrder = new Order();
-      newOrder.order_no = `#${count + 1}`;
-      newOrder.total = total;
-      newOrder.customer = createOrderDto.customer;
-      newOrder.products = products;
-      newOrder.status = OrderStatus.pending;
-
-      const order = await this.orderModel.create(newOrder);
-
-      return { message: 'Order is created successfully', data: order };
-    } catch (error) {
-      Logger.error(error);
-      throw new InternalServerErrorException('Error while creating order');
+    // map selected products ids with check
+    const products_ids = createOrderDto.products.map((product) => product._id);
+    const products = await this.productService.checkExistenceOfProductsByIds(products_ids);
+    if (!products.length) {
+      throw new UnprocessableEntityException('No products found');
     }
+
+    // calculate total price and update product quantity of order
+    let total = 0;
+    const selected_products = [];
+    const purchased_items = [];
+    for (const product of products) {
+      const found_product = createOrderDto.products.find(
+        (item) => {
+          return item._id === product._id.toString() && item.quantity <= product.quantity;
+        },
+      );
+      if (!found_product) continue;
+
+      total += product.price * found_product.quantity;
+
+      const selected_product = product;
+      selected_product.quantity -= found_product.quantity;
+      selected_products.push(selected_product);
+
+      purchased_items.push({ _id: product._id, quantity: found_product.quantity });
+    }
+
+    if (!selected_products.length) {
+      throw new UnprocessableEntityException('Exceeds products quantities limitations');
+    }
+
+    // count all orders to generate order number
+    const count = await this.orderModel.countDocuments();
+
+    // prepare order payload for insertion
+    const newOrder = new Order();
+    newOrder.order_no = `#${count + 1}`;
+    newOrder.total = total;
+    newOrder.customer = createOrderDto.customer;
+    newOrder.products = selected_products;
+    newOrder.purchased_items = purchased_items;
+
+    const order = await this.orderModel.create(newOrder);
+
+    return { message: 'Order is created successfully', data: order };
   }
 
   public async findAll(page: number, limit: number) {
-    try {
-      const skip = page - 1 > 0 ? limit * (page - 1) : 0;
-      const orders = await this.orderModel.find()
-                             .select(['_id', 'total', 'customer.name', 'customer.email'])
+    const skip = page - 1 > 0 ? limit * (page - 1) : 0;
+    const orders = await this.orderModel.find()
+                             .select(['_id', 'total', 'customer.name', 'customer.email', 'products'])
                              .skip(skip)
                              .limit(limit)
-                             .sort({ created_at: 'desc' })
-                             .populate('products', '_id')
-                             .exec();
-      const data = orders.map((order) => {
-        order.products = order.products.length as number as any;
-        return order;
-      });
-  
-      return { data, page };
-    } catch (error) {
-      Logger.error(error);
-      throw new InternalServerErrorException('Error while fetching orders list');
-    }
+                             .sort({ created_at: 'desc' });
+    const data = orders.map((order: any) => {
+      return { ...order._doc, products: order.products.length };
+    });
+
+    return { data, page };
   }
 
   public async findOne(id: string) {
-    try {
-      const data = await this.orderModel.findById(id).populate('products').exec();
-      if (!data._id) {
-        throw new UnprocessableEntityException('This order not found');
-      }
-      
-      return { message: 'Order is deleted successfully' };
-    } catch (error) {
-      Logger.error(error);
-      throw new InternalServerErrorException('Error while fetching this order')
+    const data = await this.orderModel.findById(id).populate('products').exec();
+    if (!data) {
+      throw new UnprocessableEntityException('This order not found');
     }
+    
+    return { data };
   }
 
   public async update(id: string, updateOrderDto: UpdateOrderDto) {
-    try {
-      const data = await this.orderModel.findByIdAndUpdate(id, updateOrderDto);
-      if (!data._id) {
-        throw new UnprocessableEntityException('This order not found');
-      }
-      
-      return { message: `Order status is changed to ${data.status} successfully` };
-    } catch (error) {
-      Logger.error(error);
-      throw new InternalServerErrorException('Error while updating status of this order')
+    const { pending, cancelled } = OrderStatus;
+    // update status if it isn't confirmed
+    const where = { $and: [{ _id: id }, { status: { $ne: updateOrderDto.status } }] };
+    const data = await this.orderModel.findOneAndUpdate(where, updateOrderDto).populate("products");
+    if (!data) {
+      throw new UnprocessableEntityException(`Error while changing status`);
     }
-  }
 
-  public async remove(id: string) {
-    try {
-      const data = await this.orderModel.findByIdAndDelete(id);
-      if (!data._id) {
-        throw new UnprocessableEntityException('This order not found');
+    // map purchased items for updating products quantities
+    if (updateOrderDto.status != pending) {
+      const products = [];
+      for (const item of data.purchased_items) {
+        const found_product = data.products.find((product) => item._id.toString() === product['_id']?.toString());
+        if (!found_product) continue;
+
+        if (updateOrderDto.status == cancelled) {
+          found_product.quantity += item.quantity;
+        } else {
+          found_product.quantity -= item.quantity;
+        }
+
+        products.push(found_product);
       }
-      
-      return { message: 'Order is deleted successfully' };
-    } catch (error) {
-      Logger.error(error);
-      throw new InternalServerErrorException('Error while deleting this order')
+
+      this.productService.updateProductsQuantities(products);
     }
+    
+    return { message: `Order status is changed to ${updateOrderDto.status} successfully` };
   }
 }

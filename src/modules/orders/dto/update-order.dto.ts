@@ -5,9 +5,9 @@ import { ApiProperty } from "@nestjs/swagger";
 export class UpdateOrderDto {
   @ApiProperty({
     description: 'Order status data',
-    example: { status: 'confirmed' },
+    example: 'confirmed',
   })
   @IsNotEmpty({ message: "Order status is required" })
   @IsEnum(OrderStatus, { message: "Invalid order status" })
-  public status: string; 
+  public status: string;
 }

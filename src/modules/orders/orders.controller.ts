@@ -64,12 +64,4 @@ export class OrdersController {
   public update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(id, updateOrderDto);
   }
-
-  @ApiOperation({ description: 'Delete order' })
-  @ApiOkResponse({ description: 'order is deleted successfully' })
-  @ApiUnprocessableEntityResponse({ description: 'order not found' })
-  @Delete(':id')
-  public remove(@Param('id') id: string) {
-    return this.ordersService.remove(id);
-  }
 }
