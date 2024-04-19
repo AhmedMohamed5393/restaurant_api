@@ -9,6 +9,7 @@ export const APP_NAME = process.env.APP_NAME;
 
 // redis credentials
 export const REDIS_PORT_NUMBER = process.env.REDIS_PORT_NUMBER;
+export const REDIS_HOST = process.env.REDIS_HOST;
 
 // db connection credentials
 export const MONGODB_URL = process.env.MONGODB_URL;

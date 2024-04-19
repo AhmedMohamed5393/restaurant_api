@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { OrderStatus } from '../enum/order-status.enum';
 import { Product } from 'src/modules/products/entities/product.entity';
+import { IPurchasedItem } from 'src/interfaces/purchased-item.interface';
 
 export type OrderDocument = HydratedDocument<Order>;
 
@@ -9,11 +10,6 @@ interface ICustomerDetails {
   name: string;
   address: string;
   email: string;
-}
-
-interface IPurchasedItem {
-  _id: string;
-  quantity: number;
 }
 
 @Schema({ timestamps: true, collection: 'orders' })
