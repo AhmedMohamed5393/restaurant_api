@@ -66,12 +66,12 @@ export class OrdersService {
   public async findAll(page: number, limit: number) {
     const skip = page - 1 > 0 ? limit * (page - 1) : 0;
     const orders = await this.orderModel.find()
-                             .select(['_id', 'total', 'customer.name', 'customer.email', 'products'])
+                             .select(['_id', 'total', 'customer.name', 'customer.email', 'purchased_items'])
                              .skip(skip)
                              .limit(limit)
                              .sort({ created_at: 'desc' });
     const data = orders.map((order: any) => {
-      return { ...order._doc, products: order.products.length };
+      return { ...order._doc, purchased_items: order.purchased_items.length };
     });
 
     return { data, page };

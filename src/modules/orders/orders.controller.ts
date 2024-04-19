@@ -32,13 +32,14 @@ export class OrdersController {
   @ApiBody({ type: CreateOrderDto })
   @ApiCreatedResponse({ description: 'Order is created successfully' })
   @ApiUnprocessableEntityResponse({ description: 'No products found' })
+  @ApiUnprocessableEntityResponse({ description: 'Exceeds products quantities limitations' })
   @Post()
   public create(@Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(createOrderDto);
   }
 
-  @ApiOperation({ description: 'Get all clients' })
-  @ApiOkResponse({ description: 'Clients list' })
+  @ApiOperation({ description: 'Get all orders' })
+  @ApiOkResponse({ description: 'Orders list' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
   @Get()
@@ -49,8 +50,8 @@ export class OrdersController {
     return this.ordersService.findAll(page, limit);
   }
 
-  @ApiOperation({ description: 'Get client by ID' })
-  @ApiOkResponse({ description: 'Required client data' })
+  @ApiOperation({ description: 'Get order by ID' })
+  @ApiOkResponse({ description: 'Required order data' })
   @Get(':id')
   public findOne(@Param('id') id: string) {
     return this.ordersService.findOne(id);
@@ -59,7 +60,7 @@ export class OrdersController {
   @ApiOperation({ description: 'Update order status data' })
   @ApiBody({ type: UpdateOrderDto })
   @ApiOkResponse({ description: 'Order status is changed to confirmed successfully' })
-  @ApiUnprocessableEntityResponse({ description: 'This order not found' })
+  @ApiUnprocessableEntityResponse({ description: 'Error while changing status' })
   @Patch(':id')
   public update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     return this.ordersService.update(id, updateOrderDto);
