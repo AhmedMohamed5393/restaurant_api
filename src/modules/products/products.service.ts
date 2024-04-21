@@ -15,13 +15,7 @@ export class ProductsService {
     return await this.productModel.bulkSave(payload);
   }
 
-  public async create() {
-    const payload = [
-      { name: 'Fried Chicken (Prosted)', price: 200, quantity: 5 },
-      { name: 'Fatta Shawerma', price: 120, quantity: 20 },
-      { name: 'Grilled Chicken', price: 225, quantity: 2 },
-    ];
-
+  public async create(payload: any[]) {
     return await this.productModel.create(payload);
   }
 
